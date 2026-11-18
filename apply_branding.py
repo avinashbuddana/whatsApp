@@ -187,4 +187,79 @@ if "var campaignRecipientPhonePattern" in backend_campaign:
 backend_campaign = backend_campaign.replace("// CampaignRequest represents", regex_decl + "\n// CampaignRequest represents", 1)
 backend_campaign_path.write_text(backend_campaign)
 
+
+# Campaign stats repair: count unique recipients by CURRENT status, not the
+# sum of sends plus delivery failures or duplicate failed webhook callbacks.
+backend_campaign_source = backend_campaign_path.read_text()
+before_request = "// CampaignRequest represents"
+if before_request not in backend_campaign_source:
+    raise RuntimeError("Upstream campaign struct anchor missing")
+backend_campaign_source = backend_campaign_source.replace(
+    before_request, "\n// campaignRecipientStats are reconciled from ONE current status per recipient.\n// \"sent\" is inclusive of delivered/read (successful, not failed).\ntype campaignRecipientStats struct {\n  Sent      int64\n  Delivered int64\n  Read      int64\n  Failed    int64\n}\n\nfunc (a *App) getCampaignRecipientStats(campaignID uuid.UUID) (campaignRecipientStats, error) {\n  var stats campaignRecipientStats\n  err := a.DB.Model(&models.BulkMessageRecipient{}).\n    Where(\"campaign_id = ?\", campaignID).\n    Select(`\n      COUNT(CASE WHEN status IN ('sent','delivered','read') THEN 1 END) AS sent,\n      COUNT(CASE WHEN status IN ('delivered','read') THEN 1 END) AS delivered,\n      COUNT(CASE WHEN status = 'read' THEN 1 END) AS read,\n      COUNT(CASE WHEN status = 'failed' THEN 1 END) AS failed\n    `).Scan(&stats).Error\n  return stats, err\n}\n\nfunc (a *App) setCampaignResponseStats(response *CampaignResponse) {\n  stats, err := a.getCampaignRecipientStats(response.ID)\n  if err != nil {\n    a.Log.Error(\"Unable to calculate campaign recipient stats\", \"campaign_id\", response.ID, \"error\", err)\n    return\n  }\n  response.SentCount = int(stats.Sent)\n  response.DeliveredCount = int(stats.Delivered)\n  response.ReadCount = int(stats.Read)\n  response.FailedCount = int(stats.Failed)\n}\n\n" + before_request, 1
+)
+# The original increment function counted every delivery event, including
+# repeats and statuses that superseded an earlier successful send.
+count_start = backend_campaign_source.index("func (a *App) incrementCampaignStat(")
+count_end = backend_campaign_source.index("// recalculateCampaignStats", count_start)
+backend_campaign_source = (backend_campaign_source[:count_start] +
+    "func (a *App) incrementCampaignStat(campaignID string, status string) {\n  campaignUUID, err := uuid.Parse(campaignID)\n  if err != nil {\n    a.Log.Error(\"Invalid campaign ID for stats update\", \"campaign_id\", campaignID)\n    return\n  }\n\n  // Reconcile statuses instead of incrementing counters for every webhook.\n  // A WhatsApp failure arrives AFTER Meta accepted the send; duplicates can\n  // also be delivered by the platform. Both must count as ONE recipient.\n  stats, err := a.getCampaignRecipientStats(campaignUUID)\n  if err != nil {\n    a.Log.Error(\"Unable to recalculate campaign recipient stats\", \"campaign_id\", campaignID, \"error\", err)\n    return\n  }\n\n  updates := map[string]any{\n    \"sent_count\": stats.Sent,\n    \"delivered_count\": stats.Delivered,\n    \"read_count\": stats.Read,\n    \"failed_count\": stats.Failed,\n  }\n  if err := a.DB.Model(&models.BulkMessageCampaign{}).\n    Where(\"id = ?\", campaignUUID).Updates(updates).Error; err != nil {\n    a.Log.Error(\"Unable to store campaign stats\", \"campaign_id\", campaignID, \"error\", err)\n    return\n  }\n\n  var campaign models.BulkMessageCampaign\n  if err := a.DB.Where(\"id = ?\", campaignUUID).First(&campaign).Error; err != nil {\n    return\n  }\n  if a.WSHub != nil {\n    a.WSHub.BroadcastToOrg(campaign.OrganizationID, websocket.WSMessage{\n      Type: websocket.TypeCampaignStatsUpdate,\n      Payload: map[string]any{\n        \"campaign_id\": campaignID,\n        \"status\": campaign.Status,\n        \"sent_count\": int(stats.Sent),\n        \"delivered_count\": int(stats.Delivered),\n        \"read_count\": int(stats.Read),\n        \"failed_count\": int(stats.Failed),\n      },\n    })\n  }\n}\n\n" + backend_campaign_source[count_end:])
+recalc_start = backend_campaign_source.index("// recalculateCampaignStats", count_start)
+recalc_end = backend_campaign_source.index("// sanitizeFilename", recalc_start)
+backend_campaign_source = (backend_campaign_source[:recalc_start] +
+    "// recalculateCampaignStats synchronizes the persisted counters with each\n// recipient's latest status, including for Retry Failed.\nfunc (a *App) recalculateCampaignStats(campaignID uuid.UUID) {\n  stats, err := a.getCampaignRecipientStats(campaignID)\n  if err != nil {\n    a.Log.Error(\"Unable to recalculate campaign stats\", \"campaign_id\", campaignID, \"error\", err)\n    return\n  }\n  if err := a.DB.Model(&models.BulkMessageCampaign{}).Where(\"id = ?\", campaignID).\n    Updates(map[string]any{\n      \"sent_count\": stats.Sent,\n      \"delivered_count\": stats.Delivered,\n      \"read_count\": stats.Read,\n      \"failed_count\": stats.Failed,\n    }).Error; err != nil {\n    a.Log.Error(\"Unable to persist campaign stats\", \"campaign_id\", campaignID, \"error\", err)\n  }\n}\n\n" + backend_campaign_source[recalc_end:])
+# Include stable read-only reconciliation so old inflated campaigns display
+# correctly after a refresh, without rewriting or deleting any message data.
+list_start = backend_campaign_source.index("func (a *App) ListCampaigns(")
+list_end = backend_campaign_source.index("// CreateCampaign implements", list_start)
+list_body = backend_campaign_source[list_start:list_end]
+needle = "\t\tif c.Template != nil {"
+if needle not in list_body:
+    raise RuntimeError("ListCampaigns response anchor missing")
+list_body = list_body.replace(needle, "\t\ta.setCampaignResponseStats(&response[i])\n" + needle, 1)
+backend_campaign_source = backend_campaign_source[:list_start] + list_body + backend_campaign_source[list_end:]
+get_start = backend_campaign_source.index("func (a *App) GetCampaign(")
+get_end = backend_campaign_source.index("// UpdateCampaign implements", get_start)
+get_body = backend_campaign_source[get_start:get_end]
+needle = "\tif campaign.Template != nil {"
+if needle not in get_body:
+    raise RuntimeError("GetCampaign response anchor missing")
+get_body = get_body.replace(needle, "\ta.setCampaignResponseStats(&response)\n" + needle, 1)
+backend_campaign_source = backend_campaign_source[:get_start] + get_body + backend_campaign_source[get_end:]
+# The removed incremental counter used clause.Returning, now unused.
+backend_campaign_source = backend_campaign_source.replace('\t"gorm.io/gorm/clause"\n', "", 1)
+backend_campaign_path.write_text(backend_campaign_source)
+
+backend_webhook_path = root / "internal/handlers/webhook.go"
+backend_webhook_source = backend_webhook_path.read_text()
+bad_comparison = "if newPriority <= currentPriority && newStatus != models.MessageStatusFailed {"
+if bad_comparison not in backend_webhook_source:
+    raise RuntimeError("Webhook status ordering anchor missing")
+backend_webhook_source = backend_webhook_source.replace(
+    bad_comparison, "if newPriority <= currentPriority {", 1
+)
+# Recompute statistics only AFTER the recipient row has its new status.
+before_status = "\t\t\ta.incrementCampaignStat(campaignID, statusValue)\n\n\t\t\t// Update the BulkMessageRecipient status"
+if before_status not in backend_webhook_source:
+    raise RuntimeError("Webhook count-before-recipient anchor missing")
+backend_webhook_source = backend_webhook_source.replace(
+    before_status, "\t\t\t// Update the BulkMessageRecipient status", 1
+)
+after_recipient = "\t\t\t\tWhere(\"whats_app_message_id = ?\", whatsappMsgID).\n\t\t\t\tUpdates(recipientUpdates)\n"
+if after_recipient not in backend_webhook_source:
+    raise RuntimeError("Webhook recipient update anchor missing")
+backend_webhook_source = backend_webhook_source.replace(
+    after_recipient,
+    after_recipient + "\t\t\ta.incrementCampaignStat(campaignID, statusValue)\n", 1
+)
+backend_webhook_path.write_text(backend_webhook_source)
+
+# The frontends have both a campaign detail and campaign list progress bar.
+# Sent/delivered/read are nested success states; failed is disjoint.
+patch("src/views/settings/CampaignDetailView.vue",
+      "return Math.round(((c.sent_count + c.failed_count) / c.total_recipients) * 100)",
+      "return Math.min(100, Math.max(0, Math.round(((c.sent_count + c.failed_count) / c.total_recipients) * 100)))")
+patch("src/views/settings/CampaignsView.vue",
+      "return Math.round((campaign.sent_count / campaign.total_recipients) * 100)",
+      "return Math.min(100, Math.max(0, Math.round(((campaign.sent_count + campaign.failed_count) / campaign.total_recipients) * 100)))")
+
 print("WingerX SGJ branding applied", flush=True)
