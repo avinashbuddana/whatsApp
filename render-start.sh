@@ -39,14 +39,6 @@ if [ "$EXISTS" != "1" ]; then
   psql -X -v ON_ERROR_STOP=1 -d "$ORIGINAL_RENDER_DB_NAME" -c "CREATE DATABASE \"$CLIENT_DB_NAME\""
 fi
 unset PGPASSWORD
-# One-time SGJ admin handover: synchronize only the SGJ logical database.
-# Credentials are read from Render environment by psql; never echoed.
-export PGPASSWORD="$WHATOMATE_DATABASE__PASSWORD"
-psql -X -q -v ON_ERROR_STOP=1 -d "$CLIENT_DB_NAME" \
-  -f /app/sgj-admin-onetime.sql >/dev/null
-unset PGPASSWORD
-echo "SGJ administrator email/password synchronized in client database"
-
 echo "SGJ logical database is ready; starting the WingerX application"
 
 # Run an isolated, in-container Valkey (Redis-compatible) service for this TEST tenant.
