@@ -62,4 +62,13 @@ patch("src/views/auth/LoginView.vue",
       '<p class="text-light">Your secure WhatsApp workspace for Shree Gajanand Jewellers, Ranchi. Manage customer chats, campaigns and automation in one place.</p>')
 # Client login is controlled by the tenant administrator.
 # Preserve authentication routes and all underlying services.
+
+# Page-specific semantic hooks for targeted WingerX refinements.
+# No application logic, API calls, or user data is changed.
+patch("src/views/dashboard/DashboardView.vue",
+      '<div class="flex flex-col h-full">',
+      '<div class="flex flex-col h-full" data-wingerx-dashboard>')
+patch("src/views/chatbot/ChatbotView.vue",
+      '<div class="flex flex-col h-full">',
+      '<div class="flex flex-col h-full" data-wingerx-chatbot>')
 print("WingerX SGJ branding applied", flush=True)
