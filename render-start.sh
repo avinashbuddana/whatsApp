@@ -73,4 +73,31 @@ export WHATOMATE_SERVER__HOST=0.0.0.0
 export WHATOMATE_SERVER__PORT=${PORT:-8080}
 export WHATOMATE_SERVER__ALLOWED_ORIGINS=${RENDER_EXTERNAL_URL}
 
+# One-time internal login smoke test. Runs only once on boot, prints HTTP status only.
+# Credentials are constructed as escaped JSON inside PostgreSQL and are never logged.
+(
+  export PGPASSWORD="$WHATOMATE_DATABASE__PASSWORD"
+  retries=0
+  until curl -fsS -o /dev/null http://127.0.0.1:8080/health; do
+    retries=$((retries+1))
+    if [ "$retries" -ge 25 ]; then
+      echo "SGJ internal login smoke test: health unavailable"
+      exit 0
+    fi
+    sleep 1
+  done
+  auth_json=$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$CLIENT_DB_NAME" \
+    -v "verify_email=$WHATOMATE_DEFAULT_ADMIN__EMAIL" \
+    -v "verify_password=$WHATOMATE_DEFAULT_ADMIN__PASSWORD" <<'SGJ_AUTH_SMOKE_JSON'
+SELECT json_build_object('email', :'verify_email', 'password', :'verify_password')::text;
+SGJ_AUTH_SMOKE_JSON
+  )
+  unset PGPASSWORD
+  status=$(printf '%s' "$auth_json" | curl -sS --max-time 10 -o /dev/null \
+    -w '%{http_code}' -H 'Content-Type: application/json' \
+    --data-binary @- http://127.0.0.1:8080/api/auth/login || true)
+  unset auth_json
+  echo "SGJ internal login smoke test HTTP status: $status"
+) &
+
 exec /app/whatomate server -config /app/config.toml -migrate
