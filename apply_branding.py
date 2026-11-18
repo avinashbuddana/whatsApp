@@ -125,4 +125,66 @@ if "if phoneID != \"\" && wabaID != \"\" {\n\t\treturn phoneID, wabaID, name, ni
     raise RuntimeError("Upstream WABA discovery changed; review the patch before deployment")
 backend_accounts_path.write_text(backend_source.replace("if phoneID != \"\" && wabaID != \"\" {\n\t\treturn phoneID, wabaID, name, nil\n\t}", "if wabaID != \"\" {\n\t\t// Embedded Signup v4/v5 may return WABA ID without a phone ID.\n\t\t// Resolve its phone directly instead of discarding the known WABA and\n\t\t// trying to infer it again from token granular scopes.\n\t\tif phoneID == \"\" {\n\t\t\tphonesResp, err := a.WhatsApp.GetWABAPhoneNumbers(ctx, wabaID, accessToken)\n\t\t\tif err != nil {\n\t\t\t\treturn \"\", \"\", \"\", fmt.Errorf(\"failed to fetch phone numbers from WABA: %w\", err)\n\t\t\t}\n\t\t\tif len(phonesResp.Data) == 0 {\n\t\t\t\treturn \"\", \"\", \"\", fmt.Errorf(\"no phone numbers found in this WhatsApp Business Account\")\n\t\t\t}\n\t\t\tif len(phonesResp.Data) > 1 {\n\t\t\t\ta.Log.Warn(\"Multiple phone numbers discovered in WABA; selecting the first one\", \"count\", len(phonesResp.Data))\n\t\t\t}\n\t\t\tphone := phonesResp.Data[0]\n\t\t\tphoneID = phone.ID\n\t\t\tif name == \"\" {\n\t\t\t\tname = fmt.Sprintf(\"%s (%s)\", phone.VerifiedName, phone.DisplayPhoneNumber)\n\t\t\t}\n\t\t}\n\t\treturn phoneID, wabaID, name, nil\n\t}", 1))
 
+
+# SAFETY: prevent Excel scientific notation and corrupted phone numbers from
+# getting queued in WhatsApp campaigns. Do not try to reconstruct rounded values.
+patch("src/views/settings/CampaignDetailView.vue",
+      "    for (let i = 1; i < lines.length; i++) {\n      const values = lines[i].split(',').map(v => v.trim())\n      const phone = values[phoneIndex]?.replace(/[^\\d+]/g, '')\n      if (!phone) continue",
+      "    const invalidPhoneRows: number[] = []\n    for (let i = 1; i < lines.length; i++) {\n      const values = lines[i].split(',').map(v => v.trim())\n      const originalPhone = values[phoneIndex]?.trim() || ''\n      // Remove only harmless spacing; never strip E, + in the middle, or\n      // decimal marks that signal Excel's scientific notation.\n      const compactPhone = originalPhone.replace(/[\\s()-]/g, '')\n      if (!/^\\+?[1-9][0-9]{9,14}$/.test(compactPhone)) {\n        invalidPhoneRows.push(i + 1)\n        continue\n      }\n      const phone = compactPhone.replace(/^\\+/, '')")
+patch("src/views/settings/CampaignDetailView.vue",
+      "    if (recipientsList.length === 0) {\n      toast.error(t('campaigns.noValidRowsToImport'",
+      "    if (invalidPhoneRows.length > 0) {\n      toast.error(\`CSV contains \${invalidPhoneRows.length} invalid phone number(s) at rows \${invalidPhoneRows.slice(0, 8).join(', ')}. Use full international numbers like 919876543210; set Excel phone cells to Text before exporting. Nothing was imported.\`)\n      return\n    }\n    if (recipientsList.length === 0) {\n      toast.error(t('campaigns.noValidRowsToImport'")
+
+# Backend guards prevent invalid recipient imports from any API client, and
+# disallow re-sends of previously corrupted recipient rows.
+backend_campaign_path = root / "internal/handlers/campaigns.go"
+backend_campaign = backend_campaign_path.read_text()
+start_import = backend_campaign.index("func (a *App) ImportRecipients(")
+start_list = backend_campaign.index("// GetCampaignRecipients implements", start_import)
+import_function = backend_campaign[start_import:start_list]
+import_old = "for i, rec := range req.Recipients {\n\t\trecipients[i] = models.BulkMessageRecipient{"
+import_new = """for i, rec := range req.Recipients {
+		cleaned := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", "\\\\t", "").Replace(strings.TrimSpace(rec.PhoneNumber))
+		if !campaignRecipientPhonePattern.MatchString(cleaned) {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+				fmt.Sprintf("Invalid phone number in recipient row %d. Use full country-code digits, e.g. 919876543210; Excel scientific notation is not valid.", i+1), nil, "")
+		}
+		rec.PhoneNumber = strings.TrimPrefix(cleaned, "+")
+		recipients[i] = models.BulkMessageRecipient{"""
+if import_old not in import_function:
+    raise RuntimeError("Upstream campaign import layout changed; refusing unsafe patch")
+import_function = import_function.replace(import_old, import_new, 1)
+backend_campaign = backend_campaign[:start_import] + import_function + backend_campaign[start_list:]
+
+guard = """	// Reject corrupted imported recipient phones before jobs are enqueued.
+	// A scientific-notation CSV cell cannot be reconstructed reliably.
+	for _, recipient := range recipients {
+		if !campaignRecipientPhonePattern.MatchString(recipient.PhoneNumber) {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+				"Campaign contains malformed recipient phone numbers. Export the original contacts as TEXT with country codes and create a new campaign; do not retry this recipient list.", nil, "")
+		}
+	}
+
+"""
+start_func = backend_campaign.index("func (a *App) StartCampaign(")
+pause_func = backend_campaign.index("// PauseCampaign", start_func)
+start_fn = backend_campaign[start_func:pause_func]
+if "if len(recipients) == 0 {" not in start_fn:
+    raise RuntimeError("Campaign start guard anchor missing")
+start_fn = start_fn.replace("\tif len(recipients) == 0 {", guard + "\tif len(recipients) == 0 {", 1)
+backend_campaign = backend_campaign[:start_func] + start_fn + backend_campaign[pause_func:]
+retry_func = backend_campaign.index("func (a *App) RetryFailed(")
+next_func = backend_campaign.index("// ImportRecipients implements", retry_func)
+retry_fn = backend_campaign[retry_func:next_func]
+if "if len(failedRecipients) == 0 {" not in retry_fn:
+    raise RuntimeError("Campaign retry guard anchor missing")
+retry_fn = retry_fn.replace("\tif len(failedRecipients) == 0 {", guard.replace("range recipients", "range failedRecipients") + "\tif len(failedRecipients) == 0 {", 1)
+backend_campaign = backend_campaign[:retry_func] + retry_fn + backend_campaign[next_func:]
+# regexp and strings are already imported by pinned upstream campaigns.go.
+regex_decl = "\nvar campaignRecipientPhonePattern = regexp.MustCompile(\`^\\+?[1-9][0-9]{9,14}$\`)\n"
+if "var campaignRecipientPhonePattern" in backend_campaign:
+    raise RuntimeError("Campaign phone guard already present")
+backend_campaign = backend_campaign.replace("// CampaignRequest represents", regex_decl + "\n// CampaignRequest represents", 1)
+backend_campaign_path.write_text(backend_campaign)
+
 print("WingerX SGJ branding applied", flush=True)
