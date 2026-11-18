@@ -19,6 +19,7 @@ RUN grep -q 'Name:      "Default Organization"' /src/internal/database/postgres.
     && sed -i 's/Name:      "Default Organization"/Name:      "Shree Gajanand Jewellers"/' /src/internal/database/postgres.go
 COPY --from=frontend /src/internal/handlers/accounts.go /src/internal/handlers/accounts.go
 COPY --from=frontend /src/internal/handlers/campaigns.go /src/internal/handlers/campaigns.go
+COPY --from=frontend /src/internal/handlers/webhook.go /src/internal/handlers/webhook.go
 RUN rm -rf /src/internal/frontend/dist && mkdir -p /src/internal/frontend/dist
 COPY --from=frontend /src/frontend/dist/ /src/internal/frontend/dist/
 RUN cd /src && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/whatomate ./cmd/whatomate
