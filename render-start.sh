@@ -39,6 +39,23 @@ if [ "$EXISTS" != "1" ]; then
   psql -X -v ON_ERROR_STOP=1 -d "$ORIGINAL_RENDER_DB_NAME" -c "CREATE DATABASE \"$CLIENT_DB_NAME\""
 fi
 unset PGPASSWORD
+# Temporary read-only credential diagnostic. Reports only counts and matching status.
+# Remove after checking the first deployment log. No secrets go to stdout.
+export PGPASSWORD="$WHATOMATE_DATABASE__PASSWORD"
+diagnostic=$(psql -X -q -A -t -v ON_ERROR_STOP=1 -d "$CLIENT_DB_NAME" \
+    -v "verify_email=$WHATOMATE_DEFAULT_ADMIN__EMAIL" \
+    -v "verify_password=$WHATOMATE_DEFAULT_ADMIN__PASSWORD" <<'SGJ_AUTH_DIAGNOSTIC_SQL'
+SELECT
+  COUNT(*) FILTER (WHERE email = :'verify_email') AS email_count,
+  COUNT(*) FILTER (WHERE email = :'verify_email' AND is_active = true) AS active_count,
+  COUNT(*) FILTER (WHERE email = :'verify_email' AND password_hash = crypt(:'verify_password', password_hash)) AS bcrypt_match_count,
+  COUNT(*) FILTER (WHERE is_super_admin = true AND deleted_at IS NULL) AS superadmin_count
+FROM users WHERE deleted_at IS NULL;
+SGJ_AUTH_DIAGNOSTIC_SQL
+)
+unset PGPASSWORD
+echo "SGJ auth diagnostic (email_matches|active_matches|hash_matches|superadmin_count): $diagnostic"
+
 echo "SGJ logical database is ready; starting the WingerX application"
 
 # Run an isolated, in-container Valkey (Redis-compatible) service for this TEST tenant.
