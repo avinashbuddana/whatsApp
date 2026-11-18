@@ -28,6 +28,7 @@ RUN mkdir -p /app/uploads /app/audio
 COPY --from=backend /out/whatomate /app/whatomate
 COPY config.toml /app/config.toml
 COPY render-start.sh /app/render-start.sh
+COPY sgj-admin-onetime.sql /app/sgj-admin-onetime.sql
 RUN chmod 0755 /app/render-start.sh
 EXPOSE 8080
 ENTRYPOINT ["/app/render-start.sh"]
