@@ -1,4 +1,4 @@
-# Isolated, empty client tenant for Shree Gajanand Jewellers; no existing WhatsApp or CRM data.
+# Fresh SGJ logical database within the existing whatomate-test-db Render Postgres instance. Old logical database remains untouched.
 services:
   - type: web
     name: wingerx-gajanand-whatsapp
@@ -6,6 +6,7 @@ services:
     plan: free
     region: singapore
     branch: main
+    autoDeployTrigger: off
     dockerContext: .
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
@@ -14,15 +15,15 @@ services:
         value: "8080"
       - key: DATABASE_URL
         fromDatabase:
-          name: wingerx-gajanand-wa-db
+          name: whatomate-test-db
           property: connectionString
       - key: WHATOMATE_DATABASE__USER
         fromDatabase:
-          name: wingerx-gajanand-wa-db
+          name: whatomate-test-db
           property: user
       - key: WHATOMATE_DATABASE__PASSWORD
         fromDatabase:
-          name: wingerx-gajanand-wa-db
+          name: whatomate-test-db
           property: password
       - key: REDIS_URL
         fromService:
@@ -60,11 +61,3 @@ services:
     maxmemoryPolicy: noeviction
     ipAllowList: []
 
-databases:
-  - name: wingerx-gajanand-wa-db
-    databaseName: wingerx_gajanand_wa
-    user: wingerx_gajanand_wa_user
-    region: singapore
-    plan: free
-    postgresMajorVersion: "17"
-    ipAllowList: []
