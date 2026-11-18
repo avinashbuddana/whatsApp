@@ -54,6 +54,9 @@ export WHATOMATE_REDIS__DB=0
 
 export WHATOMATE_SERVER__HOST=0.0.0.0
 export WHATOMATE_SERVER__PORT=${PORT:-8080}
-export WHATOMATE_SERVER__ALLOWED_ORIGINS=${RENDER_EXTERNAL_URL}
+# Only permit the SGJ custom domain and this Render service's canonical HTTPS origin.
+# The upstream WebSocket origin checker compares exact scheme + hostname values.
+# Never use '*' or an empty list in production, which would disable origin restriction.
+export WHATOMATE_SERVER__ALLOWED_ORIGINS="https://chat.shreegajanandjewellers.com,${RENDER_EXTERNAL_URL}"
 
 exec /app/whatomate server -config /app/config.toml -migrate
