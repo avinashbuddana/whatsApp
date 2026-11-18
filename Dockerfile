@@ -22,7 +22,7 @@ COPY --from=frontend /src/frontend/dist/ /src/internal/frontend/dist/
 RUN cd /src && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/whatomate ./cmd/whatomate
 
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates tzdata ffmpeg
+RUN apk add --no-cache ca-certificates tzdata ffmpeg postgresql-client
 WORKDIR /app
 RUN mkdir -p /app/uploads /app/audio
 COPY --from=backend /out/whatomate /app/whatomate
