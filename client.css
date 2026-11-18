@@ -234,3 +234,81 @@ button:not([disabled]):hover { filter:brightness(.98); }
   height: 1.55rem;
   border-radius: .45rem;
 }
+
+/* SGJ complete brand handover: use the official brown elephant throughout. */
+.sgj-brand-mark, .sgj-auth-mark {
+  display: block; flex-shrink: 0;
+  object-fit: contain; object-position: center;
+  padding: 5px; background: #fffaf4;
+  border: 1px solid #e9ddd1; border-radius: 12px;
+  box-shadow: 0 4px 12px rgb(91 59 42 / 8%);
+}
+.sgj-brand-mark {
+  width: 44px; height: 44px; min-width: 44px;
+}
+.wingerx-sidebar-brand {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: .78rem; align-items: center;
+  padding: 1.15rem 1rem !important;
+}
+.wingerx-sidebar-brand .wingerx-brand-copy { min-width:0; overflow:hidden; gap:.08rem; }
+.wingerx-sidebar-brand .wingerx-brand-copy strong { font-size:1.13rem; line-height:1.28; }
+.wingerx-sidebar-brand .wingerx-client-chip {
+  margin-top: .55rem; line-height: 1.3;
+  color: #8b5c41; overflow-wrap: anywhere;
+}
+[data-sidebar-header] .sgj-brand-mark {
+  width: 29px; height: 29px; min-width:29px;
+  padding: 3px; border-radius: 7px; box-shadow:none;
+}
+.auth-panel .sgj-auth-mark {
+  width: 86px; height: 86px; min-width:86px;
+  padding: 9px; border-radius:18px;
+  margin-bottom:.35rem;
+  box-shadow:0 10px 25px rgb(103 73 54 / 10%);
+}
+.auth-panel h2 {
+  font-size: clamp(1.5rem, 2.5vw, 1.85rem);
+  letter-spacing: -.03em; text-align:center;
+}
+.auth-panel .wingerx-auth-badge {
+  color:#8b5c41; background:#faf3eb; letter-spacing:.035em;
+}
+/* Fix the sidebar organization menu's narrow label and logo misalignment. */
+[data-sidebar] > header {
+  padding:.55rem .7rem !important;
+  min-width:0; border-bottom:1px solid #edf0f6;
+}
+[data-sidebar] [data-org-trigger] {
+  display:flex; align-items:center; gap:.7rem;
+  width:100%; max-width:100%; min-width:0;
+  min-height:52px; padding:.45rem .35rem;
+  text-align:left;
+}
+[data-sidebar] [data-org-trigger] [data-org-logo] {
+  width:38px; height:38px; min-width:38px; max-width:38px;
+  padding:4px; border-radius:10px; background:#fffaf4;
+  border:1px solid #e8d9cc; box-sizing:border-box;
+}
+[data-sidebar] [data-org-trigger] strong {
+  display:-webkit-box; flex:1 1 0%; min-width:0;
+  -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  white-space:normal; overflow:hidden; overflow-wrap:anywhere;
+  text-overflow:clip; line-height:1.3;
+  color:#253858;
+}
+[data-sidebar] [data-org-trigger]:hover {
+  background:#f6f8fc; border-radius:12px;
+}
+[data-sidebar] [data-org-trigger]:focus-visible {
+  outline:2px solid #a8c0eb; outline-offset:1px;
+}
+[data-sidebar] nav { min-width:0; }
+[data-sidebar] nav li { min-width:0; }
+[data-sidebar] nav a { min-width:0; }
+[data-sidebar] nav a span { min-width:0; }
+@media (max-width:768px) {
+  .wingerx-sidebar-brand { padding: 1rem .8rem !important; }
+  .auth-panel .sgj-auth-mark { width:74px; height:74px; min-width:74px; }
+}
