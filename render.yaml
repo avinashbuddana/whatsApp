@@ -1,4 +1,4 @@
-# Fresh SGJ logical database within the existing whatomate-test-db Render Postgres instance. Old logical database remains untouched.
+# Fresh SGJ logical DB in existing Postgres; isolated in-container Valkey for test-only queues. Old application/data remain untouched.
 services:
   - type: web
     name: wingerx-gajanand-whatsapp
@@ -25,11 +25,6 @@ services:
         fromDatabase:
           name: whatomate-test-db
           property: password
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: wingerx-gajanand-wa-redis
-          property: connectionString
       - key: WHATOMATE_APP__ENVIRONMENT
         value: production
       - key: WHATOMATE_APP__DEBUG
@@ -54,10 +49,3 @@ services:
         value: "false"
       - key: WHATOMATE_STORAGE__TYPE
         value: local
-  - type: keyvalue
-    name: wingerx-gajanand-wa-redis
-    plan: free
-    region: singapore
-    maxmemoryPolicy: noeviction
-    ipAllowList: []
-
