@@ -49,7 +49,8 @@ export WHATOMATE_REDIS__HOST=127.0.0.1
 export WHATOMATE_REDIS__PORT=6379
 export WHATOMATE_REDIS__TLS=false
 export WHATOMATE_REDIS__DB=0
-valkey-cli -h 127.0.0.1 -p 6379 ping >/dev/null
+# Whatomate validates the Redis/Valkey connection with its built-in PING on startup.
+# Alpine valkey package supplies valkey-server but not necessarily valkey-cli.
 
 export WHATOMATE_SERVER__HOST=0.0.0.0
 export WHATOMATE_SERVER__PORT=${PORT:-8080}
