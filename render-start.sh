@@ -2,7 +2,6 @@
 set -eu
 
 : "${DATABASE_URL:?Missing Render DATABASE_URL}"
-: "${REDIS_URL:?Missing Render REDIS_URL}"
 : "${WHATOMATE_DATABASE__USER:?Missing Render database user}"
 : "${WHATOMATE_DATABASE__PASSWORD:?Missing Render database password}"
 : "${WHATOMATE_DEFAULT_ADMIN__PASSWORD:?Missing initial admin password}"
@@ -42,30 +41,16 @@ fi
 unset PGPASSWORD
 echo "SGJ logical database is ready; starting the WingerX application"
 
-redis_scheme=${REDIS_URL%%://*}
-redis_url=${REDIS_URL#*://}
-redis_location=${redis_url#*@}
-redis_hostport=${redis_location%%/*}
-export WHATOMATE_REDIS__HOST=${redis_hostport%%:*}
-if [ "$redis_hostport" = "${redis_hostport%%:*}" ]; then
-  export WHATOMATE_REDIS__PORT=6379
-else
-  export WHATOMATE_REDIS__PORT=${redis_hostport##*:}
-fi
-if [ "$redis_scheme" = "rediss" ]; then
-  export WHATOMATE_REDIS__TLS=true
-else
-  export WHATOMATE_REDIS__TLS=false
-fi
-if [ "$redis_url" != "$redis_location" ]; then
-  redis_auth=${redis_url%%@*}
-  if [ "$redis_auth" != "${redis_auth#*:}" ]; then
-    export WHATOMATE_REDIS__USERNAME=${redis_auth%%:*}
-    export WHATOMATE_REDIS__PASSWORD=${redis_auth#*:}
-  else
-    export WHATOMATE_REDIS__PASSWORD=$redis_auth
-  fi
-fi
+# Run an isolated, in-container Valkey (Redis-compatible) service for this TEST tenant.
+# On free Render, the filesystem and queue are ephemeral: do not rely on scheduled
+# campaigns surviving sleep/restarts. No Redis is shared with the original account.
+valkey-server --bind 127.0.0.1 --port 6379 --save "" --appendonly no --daemonize yes --maxmemory 96mb --maxmemory-policy noeviction
+export WHATOMATE_REDIS__HOST=127.0.0.1
+export WHATOMATE_REDIS__PORT=6379
+export WHATOMATE_REDIS__TLS=false
+export WHATOMATE_REDIS__DB=0
+valkey-cli -h 127.0.0.1 -p 6379 ping >/dev/null
+
 export WHATOMATE_SERVER__HOST=0.0.0.0
 export WHATOMATE_SERVER__PORT=${PORT:-8080}
 export WHATOMATE_SERVER__ALLOWED_ORIGINS=${RENDER_EXTERNAL_URL}
