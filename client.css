@@ -312,3 +312,72 @@ button:not([disabled]):hover { filter:brightness(.98); }
   .wingerx-sidebar-brand { padding: 1rem .8rem !important; }
   .auth-panel .sgj-auth-mark { width:74px; height:74px; min-width:74px; }
 }
+
+/* WingerX sidebar navigation overflow repair (Nov 2026).
+   Settings' 14 nested links must never squeeze Dashboard / Chat / Campaigns
+   out of the sidebar. Keep primary and secondary navigation independently
+   scrollable, with persistent organization header and user footer. */
+[data-sidebar-layout] > [data-sidebar] {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+[data-sidebar] > .wingerx-sidebar-brand,
+[data-sidebar] > header,
+[data-sidebar] > footer {
+  flex: 0 0 auto !important;
+}
+[data-sidebar] > nav:not([data-pinned]) {
+  display: block;
+  flex: 1 1 0% !important;
+  min-height: 150px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+[data-sidebar] > nav[data-pinned] {
+  display: block;
+  flex: 0 1 auto !important;
+  min-height: 0 !important;
+  max-height: clamp(180px, 38dvh, 370px);
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  border-top: 1px solid #edf1f7;
+  box-shadow: 0 -5px 14px rgb(30 54 94 / 2%);
+}
+[data-sidebar] > nav:not([data-pinned])::-webkit-scrollbar,
+[data-sidebar] > nav[data-pinned]::-webkit-scrollbar {
+  width: 6px;
+}
+[data-sidebar] > nav:not([data-pinned])::-webkit-scrollbar-thumb,
+[data-sidebar] > nav[data-pinned]::-webkit-scrollbar-thumb {
+  background: #c9d4e6;
+  border-radius: 12px;
+}
+[data-sidebar] > nav:not([data-pinned])::-webkit-scrollbar-track,
+[data-sidebar] > nav[data-pinned]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-sidebar] > nav[data-pinned] > ul { padding-block: .2rem .4rem; }
+[data-sidebar] > nav[data-pinned] ul li > ul { padding-block-end: .5rem; }
+[data-sidebar] > nav[data-pinned] li > ul a {
+  min-height: 38px;
+  padding-block: .55rem;
+}
+@media (max-height: 650px) {
+  [data-sidebar] > nav:not([data-pinned]) { min-height: 115px !important; }
+  [data-sidebar] > nav[data-pinned] { max-height: 35dvh; }
+}
+@media (max-width: 768px) {
+  [data-sidebar-layout] > [data-sidebar] {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+  [data-sidebar] > nav[data-pinned] { max-height: 38dvh; }
+}
