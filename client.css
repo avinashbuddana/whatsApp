@@ -72,3 +72,144 @@ button:not([disabled]):hover { filter:brightness(.98); }
 @media(prefers-reduced-motion:reduce) {
   button, a, input { transition:none!important; }
 }
+
+/* WingerX interface polish v2 — dashboard/chatbot and shared light surfaces */
+:root, html {
+  color-scheme: light !important;
+  --foreground: #182941;
+  --card-foreground: #182941;
+  --muted-foreground: #64748b;
+  --border: #e3eaf4;
+}
+[data-sidebar-layout] { color: #182941; }
+[data-sidebar-layout] main { min-width: 0; }
+[data-page-header] { gap: .75rem; padding-inline: clamp(1rem,2vw,1.65rem); }
+[data-page-header] :is(button, .button).outline {
+  background: #fff !important;
+  border: 1px solid #dce6f4 !important;
+  color: #28466d !important;
+  opacity: 1 !important;
+}
+[data-page-header] :is(button, .button).outline:hover {
+  background: #eef4ff !important; color: #1d4ed8 !important;
+}
+[data-page-header] :is(button, .button):not(.outline):not(.ghost) {
+  color: #fff; background: #285fe7;
+}
+[data-page-body] { width: 100%; min-width: 0; }
+.card { color: #182941; }
+.card .text-light { color: #64748b; }
+.card .text-lighter { color: #7b8aa2; }
+/* Upstream widget headings and shortcut links use light-dark() which previously
+   resolved to a white-on-white palette in the client white theme. */
+[data-wingerx-dashboard] .card[data-widget] > header h4 {
+  display: block !important; color: #334564 !important;
+  opacity: 1 !important; font-size: .875rem;
+  font-weight: 650 !important; line-height: 1.3;
+}
+[data-wingerx-dashboard] .card[data-widget] > header small {
+  color: #71829d !important; opacity: 1 !important;
+}
+[data-wingerx-dashboard] .card[data-widget] [data-widget-value] {
+  color: #162747 !important; font-size: clamp(1.65rem,2.3vw,2.1rem);
+  font-variant-numeric: tabular-nums;
+}
+[data-wingerx-dashboard] [data-widget-change],
+[data-wingerx-dashboard] [data-widget-change] [data-trend="flat"] {
+  color: #657995 !important; opacity: 1;
+}
+[data-wingerx-dashboard] .card[data-widget] > p.text-light {
+  display: block; color: #72839e !important; line-height: 1.5;
+  margin-top: .25rem;
+}
+[data-wingerx-dashboard] [data-widget="shortcuts"] > header h4 {
+  color: #334564 !important;
+}
+[data-wingerx-dashboard] [data-shortcut-grid] {
+  row-gap: .65rem; column-gap: .65rem; align-content: start;
+  padding: .1rem 0 .35rem; overflow-y: auto;
+}
+[data-wingerx-dashboard] a[data-shortcut] {
+  color: #243b5c !important; background: #f6f9ff !important;
+  border: 1px solid #e2eaf7 !important;
+  border-radius: 12px; font-size: .79rem;
+  font-weight: 650; line-height: 1.35;
+  text-align: center; text-decoration: none;
+  min-height: 104px; gap: .6rem; padding: .85rem .5rem;
+  opacity: 1 !important; visibility: visible !important;
+}
+[data-wingerx-dashboard] a[data-shortcut]:hover,
+[data-wingerx-dashboard] a[data-shortcut]:focus-visible {
+  border-color: #a8c5f5 !important; background: #edf4ff !important;
+  color: #1d4ed8 !important; box-shadow: 0 5px 16px rgba(39,87,166,.09);
+  transform: none;
+}
+[data-wingerx-dashboard] [data-shortcut-icon] {
+  width: 2.65rem; height: 2.65rem; color: #fff !important;
+  box-shadow: 0 4px 12px rgba(39,87,166,.12);
+  border-radius: .65rem; flex: none;
+}
+[data-wingerx-dashboard] [data-widget="shortcuts"] { overflow: hidden; }
+/* Empty chart/table widgets are not useful at their saved 8-row height.
+   Visually compact them outside Edit Layout; never change widget data or saved grid. */
+[data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
+  > [data-testid="dashboard-widget"]:has(> [data-widget="table"] > p.text-light),
+[data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
+  > [data-testid="dashboard-widget"]:has(> [data-widget="chart"] > p.text-light) {
+  height: 215px !important;
+}
+[data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
+  > [data-testid="dashboard-widget"]:has(> [data-widget="shortcuts"]) {
+  height: 320px !important;
+}
+[data-wingerx-dashboard] .card[data-widget] { min-width: 0; }
+[data-wingerx-dashboard] button[data-widget-action] { color: #71829d; }
+[data-wingerx-dashboard] button[data-widget-action]:hover { color: #285fe7; }
+/* Chatbot gets predictable card heights, readable labels and accessible actions. */
+[data-wingerx-chatbot] .row { row-gap: 1rem; }
+[data-wingerx-chatbot] .row > :is(.col-3, .col-4, .col-6) { min-width: 0; }
+[data-wingerx-chatbot] .row > .col-3 > article.card {
+  min-height: 126px; padding: 1.15rem 1.3rem;
+  gap: .9rem;
+}
+[data-wingerx-chatbot] .row > .col-3 .card > header small {
+  color: #60758f !important; font-size: .8rem; font-weight: 550;
+}
+[data-wingerx-chatbot] .row > .col-3 .card > h2 {
+  color: #142746; font-size: 1.65rem; margin: 0;
+}
+[data-wingerx-chatbot] .col-4 a.unstyled > .card {
+  min-height: 104px; padding: 1.1rem 1.25rem;
+  transition: background .15s ease, border-color .15s ease;
+}
+[data-wingerx-chatbot] .col-4 a.unstyled:hover > .card {
+  background: #f7faff !important; border-color: #b9cdf0 !important;
+}
+[data-wingerx-chatbot] .col-4 a.unstyled h3 { color: #162b4a; font-size: 1.13rem; margin: 0 0 .3rem; }
+[data-wingerx-chatbot] .col-4 a.unstyled small { color: #6a7c96 !important; }
+[data-wingerx-chatbot] .col-4 a.unstyled svg { color: #285fe7; flex-shrink: 0; }
+[data-wingerx-chatbot] > .scroll-y { padding: 1.15rem clamp(1rem,2vw,1.75rem); }
+[data-wingerx-chatbot] > .scroll-y > .vstack { gap: 1.2rem; }
+[data-wingerx-chatbot] > .scroll-y > .vstack > article.card { padding: 1.2rem 1.4rem; }
+[data-wingerx-chatbot] > .scroll-y > .vstack > article.card > header h3 { color: #172c4a; }
+[data-wingerx-chatbot] > .scroll-y > .vstack > article.card .row > .col-6.card {
+  background: #f9fbff !important; border-color: #e5ebf5 !important;
+  box-shadow: none !important; min-height: 76px;
+}
+[data-wingerx-chatbot] > .scroll-y > .vstack > article.card .row > .col-6.card > small { color: #657992 !important; }
+[data-wingerx-chatbot] > .scroll-y > .vstack > article.card .row > .col-6.card :is(p,strong) { color: #1d3150; }
+[data-wingerx-chatbot] [data-page-header] .badge { color: #526783; background: #eef3fa; }
+@media (max-width: 900px) {
+  [data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
+    > [data-testid="dashboard-widget"]:has(> [data-widget="shortcuts"]) { height: auto !important; min-height: 290px; }
+  [data-wingerx-dashboard] [data-shortcut-grid] { overflow: visible; }
+}
+@media (max-width: 640px) {
+  [data-wingerx-chatbot] .col-4 a.unstyled > .card { min-height: 92px; }
+  [data-wingerx-chatbot] > .scroll-y > .vstack > article.card { padding: 1rem; }
+  [data-wingerx-dashboard] a[data-shortcut] { min-height: 88px; }
+  [data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
+    > [data-testid="dashboard-widget"]:has(> [data-widget="table"] > p.text-light),
+  [data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
+    > [data-testid="dashboard-widget"]:has(> [data-widget="chart"] > p.text-light) { height: 180px !important; }
+}
