@@ -42,11 +42,14 @@ unset PGPASSWORD
 # ONE-TIME SGJ administrator recovery; remove after successful deploy.
 # The SQL runs only in wingerx_gajanand_wa, not the original Whatomate DB.
 : "${WHATOMATE_DEFAULT_ADMIN__EMAIL:?Missing SGJ admin email}"
+# psql credential was removed after DB creation; restore it for the one-time reset.
+export PGPASSWORD="$WHATOMATE_DATABASE__PASSWORD"
 echo "Applying one-time SGJ administrator credential recovery (secrets not logged)"
 psql -X -q -v ON_ERROR_STOP=1 -d "$CLIENT_DB_NAME" \
   -v "admin_email=$WHATOMATE_DEFAULT_ADMIN__EMAIL" \
   -v "admin_password=$WHATOMATE_DEFAULT_ADMIN__PASSWORD" \
   -f /app/sgj-admin-reset.sql >/dev/null
+unset PGPASSWORD
 echo "SGJ admin credentials synchronized with Render environment"
 echo "SGJ logical database is ready; starting the WingerX application"
 
