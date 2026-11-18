@@ -21,8 +21,26 @@ if [ "$db_hostport" = "${db_hostport%%:*}" ]; then
 else
   export WHATOMATE_DATABASE__PORT=${db_hostport##*:}
 fi
-export WHATOMATE_DATABASE__NAME=${db_path%%\?*}
+ORIGINAL_RENDER_DB_NAME=${db_path%%\?*}
+CLIENT_DB_NAME=wingerx_gajanand_wa
+export WHATOMATE_DATABASE__NAME=$CLIENT_DB_NAME
 export WHATOMATE_DATABASE__SSL_MODE=require
+# Create the client's own logical database in the existing PostgreSQL instance.
+# Never run migrations against the old default database.
+# This requires the existing Render database role to have CREATEDB privileges.
+# CREATE DATABASE runs only if the client database is absent.
+export PGSSLMODE=require
+export PGHOST="$WHATOMATE_DATABASE__HOST"
+export PGPORT="$WHATOMATE_DATABASE__PORT"
+export PGUSER="$WHATOMATE_DATABASE__USER"
+export PGPASSWORD="$WHATOMATE_DATABASE__PASSWORD"
+EXISTS=$(psql -X -v ON_ERROR_STOP=1 -d "$ORIGINAL_RENDER_DB_NAME" -tAc "SELECT 1 FROM pg_database WHERE datname = '$CLIENT_DB_NAME'")
+if [ "$EXISTS" != "1" ]; then
+  echo "Creating dedicated SGJ logical PostgreSQL database"
+  psql -X -v ON_ERROR_STOP=1 -d "$ORIGINAL_RENDER_DB_NAME" -c "CREATE DATABASE \"$CLIENT_DB_NAME\""
+fi
+unset PGPASSWORD
+echo "SGJ logical database is ready; starting the WingerX application"
 
 redis_scheme=${REDIS_URL%%://*}
 redis_url=${REDIS_URL#*://}
