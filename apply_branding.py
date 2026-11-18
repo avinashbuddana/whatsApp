@@ -23,6 +23,7 @@ shutil.copyfile(assets / "wingerx.css", frontend / "src/assets/wingerx.css")
 shutil.copyfile(assets / "client.css", frontend / "src/assets/client.css")
 shutil.copyfile(assets / "wingerx-mark.svg", frontend / "public/wingerx-mark.svg")
 shutil.copyfile(assets / "wingerx-mark.svg", frontend / "public/favicon.svg")
+shutil.copyfile(assets / "sgj-elephant-logo.svg", frontend / "public/sgj-elephant-logo.svg")
 
 patch("src/main.ts",
       "import './assets/layout.css'",
@@ -71,4 +72,13 @@ patch("src/views/dashboard/DashboardView.vue",
 patch("src/views/chatbot/ChatbotView.vue",
       '<div class="flex flex-col h-full">',
       '<div class="flex flex-col h-full" data-wingerx-chatbot>')
+
+# Use the authentic SGJ elephant emblem as the fallback logo for SGJ only.
+# Preserve actual organization-uploaded logos and the org switcher behavior.
+patch("src/components/layout/OrganizationSwitcher.vue",
+      "org.logo || DEFAULT_LOGO",
+      "org.logo || (org.name?.toLowerCase().includes('shree gajanand') ? '/sgj-elephant-logo.svg' : DEFAULT_LOGO)")
+patch("src/components/layout/OrganizationSwitcher.vue",
+      "currentOrg.value?.logo || DEFAULT_LOGO",
+      "currentOrg.value?.logo || (currentOrgName.value.toLowerCase().includes('shree gajanand') ? '/sgj-elephant-logo.svg' : DEFAULT_LOGO)")
 print("WingerX SGJ branding applied", flush=True)
