@@ -39,6 +39,15 @@ if [ "$EXISTS" != "1" ]; then
   psql -X -v ON_ERROR_STOP=1 -d "$ORIGINAL_RENDER_DB_NAME" -c "CREATE DATABASE \"$CLIENT_DB_NAME\""
 fi
 unset PGPASSWORD
+# ONE-TIME SGJ administrator recovery; remove after successful deploy.
+# The SQL runs only in wingerx_gajanand_wa, not the original Whatomate DB.
+: "${WHATOMATE_DEFAULT_ADMIN__EMAIL:?Missing SGJ admin email}"
+echo "Applying one-time SGJ administrator credential recovery (secrets not logged)"
+psql -X -q -v ON_ERROR_STOP=1 -d "$CLIENT_DB_NAME" \
+  -v "admin_email=$WHATOMATE_DEFAULT_ADMIN__EMAIL" \
+  -v "admin_password=$WHATOMATE_DEFAULT_ADMIN__PASSWORD" \
+  -f /app/sgj-admin-reset.sql >/dev/null
+echo "SGJ admin credentials synchronized with Render environment"
 echo "SGJ logical database is ready; starting the WingerX application"
 
 # Run an isolated, in-container Valkey (Redis-compatible) service for this TEST tenant.
