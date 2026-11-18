@@ -213,3 +213,24 @@ button:not([disabled]):hover { filter:brightness(.98); }
   [data-wingerx-dashboard] [data-page-body] > .row:not([data-layout-editing])
     > [data-testid="dashboard-widget"]:has(> [data-widget="chart"] > p.text-light) { height: 180px !important; }
 }
+
+/* Authentic Shree Gajanand Jewellers emblem in business selector. */
+[data-org-trigger] [data-org-logo],
+[data-sidebar] [data-org-logo="small"] {
+  object-fit: contain;
+  object-position: center;
+  background-color: #fffaf4;
+  border: 1px solid #e9ddcf;
+  padding: 3px;
+  box-sizing: border-box;
+}
+[data-org-trigger] [data-org-logo] {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: .65rem;
+}
+[data-sidebar] [data-org-logo="small"] {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: .45rem;
+}
