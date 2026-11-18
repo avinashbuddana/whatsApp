@@ -133,7 +133,7 @@ patch("src/views/settings/CampaignDetailView.vue",
       "    const invalidPhoneRows: number[] = []\n    for (let i = 1; i < lines.length; i++) {\n      const values = lines[i].split(',').map(v => v.trim())\n      const originalPhone = values[phoneIndex]?.trim() || ''\n      // Remove only harmless spacing; never strip E, + in the middle, or\n      // decimal marks that signal Excel's scientific notation.\n      const compactPhone = originalPhone.replace(/[\\s()-]/g, '')\n      if (!/^\\+?[1-9][0-9]{9,14}$/.test(compactPhone)) {\n        invalidPhoneRows.push(i + 1)\n        continue\n      }\n      const phone = compactPhone.replace(/^\\+/, '')")
 patch("src/views/settings/CampaignDetailView.vue",
       "    if (recipientsList.length === 0) {\n      toast.error(t('campaigns.noValidRowsToImport'",
-      "    if (invalidPhoneRows.length > 0) {\n      toast.error(\`CSV contains \${invalidPhoneRows.length} invalid phone number(s) at rows \${invalidPhoneRows.slice(0, 8).join(', ')}. Use full international numbers like 919876543210; set Excel phone cells to Text before exporting. Nothing was imported.\`)\n      return\n    }\n    if (recipientsList.length === 0) {\n      toast.error(t('campaigns.noValidRowsToImport'")
+      "    if (invalidPhoneRows.length > 0) {\n      toast.error(`CSV contains ${invalidPhoneRows.length} invalid phone number(s) at rows ${invalidPhoneRows.slice(0, 8).join(', ')}. Use full international numbers like 919876543210; set Excel phone cells to Text before exporting. Nothing was imported.`)\n      return\n    }\n    if (recipientsList.length === 0) {\n      toast.error(t('campaigns.noValidRowsToImport'")
 
 # Backend guards prevent invalid recipient imports from any API client, and
 # disallow re-sends of previously corrupted recipient rows.
@@ -144,7 +144,7 @@ start_list = backend_campaign.index("// GetCampaignRecipients implements", start
 import_function = backend_campaign[start_import:start_list]
 import_old = "for i, rec := range req.Recipients {\n\t\trecipients[i] = models.BulkMessageRecipient{"
 import_new = """for i, rec := range req.Recipients {
-		cleaned := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", "\\\\t", "").Replace(strings.TrimSpace(rec.PhoneNumber))
+		cleaned := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", "\\t", "").Replace(strings.TrimSpace(rec.PhoneNumber))
 		if !campaignRecipientPhonePattern.MatchString(cleaned) {
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
 				fmt.Sprintf("Invalid phone number in recipient row %d. Use full country-code digits, e.g. 919876543210; Excel scientific notation is not valid.", i+1), nil, "")
@@ -181,7 +181,7 @@ if "if len(failedRecipients) == 0 {" not in retry_fn:
 retry_fn = retry_fn.replace("\tif len(failedRecipients) == 0 {", guard.replace("range recipients", "range failedRecipients") + "\tif len(failedRecipients) == 0 {", 1)
 backend_campaign = backend_campaign[:retry_func] + retry_fn + backend_campaign[next_func:]
 # regexp and strings are already imported by pinned upstream campaigns.go.
-regex_decl = "\nvar campaignRecipientPhonePattern = regexp.MustCompile(\`^\\+?[1-9][0-9]{9,14}$\`)\n"
+regex_decl = "\nvar campaignRecipientPhonePattern = regexp.MustCompile(`^\\+?[1-9][0-9]{9,14}$`)\n"
 if "var campaignRecipientPhonePattern" in backend_campaign:
     raise RuntimeError("Campaign phone guard already present")
 backend_campaign = backend_campaign.replace("// CampaignRequest represents", regex_decl + "\n// CampaignRequest represents", 1)
